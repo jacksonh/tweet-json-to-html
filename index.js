@@ -25,11 +25,8 @@ module.exports = async (tweet, bg = 'default') => {
     // Arranging main tweet data
     const author = tweet.includes.users.find(o => o.id === tweet.data.author_id)
     const created_at = moment(tweet.data.created_at)
-    const text = tweet.data.text.replace(/ https?:\/\/t.co\/[a-zA-Z0-9]*$/, '')
-    const text_tagged = text    .replace(/(https?:\/\/)([^\s]+)/g, '<a href="$&" target="_blank">$2</a>')
-                                .replace(/(?<=\s)#([^\s]+)/g, '<a href="https://twitter.com/hashtag/$1?src=hashtag_click" target="_blank">#$1</a>')
-                                .replace(/(?<=\s)@([^\s]+)/g, '<a href="https://twitter.com/$1" target="_blank">@$1</a>')
-                                .replace(/\n/g, '<br />')
+    let text = tweet.data.text // .replace(/ https?:\/\/t.co\/[a-zA-Z0-9]*$/, '')
+
     const link = `https://twitter.com/${author.username}/status/${tweet.data.id}`
     const author_link = `https://twitter.com/${author.username}`
 
@@ -42,14 +39,27 @@ module.exports = async (tweet, bg = 'default') => {
     main = main.replace('%NAME%', author.name)
     main = author.verified ? main.replace('%VERIFIED%', verified) : main.replace('%VERIFIED%', '')
     main = main.replace('%USER_NAME%', '@' + author.username)
-    main = main.replace('%TEXT%', text_tagged)
     main = main.replace('%TIME%', created_at.format(locale.datetime.LT))
     main = main.replace('%DATE%', created_at.format(locale.datetime.ll))
-    main = main.replace('%SOURCE%', tweet.data.source)
+    main = main.replace('%ORGINAL_LINK%', `${author_link}/status/${tweet.data.id}`)
 
-    //
     let includes = []
     let include_form = fs.readFileSync(path.join(__dirname, 'form', 'include.html'), 'utf-8')
+
+    // Substitute URL text with the actual URL
+    if (tweet.data.entities.urls) {
+        for (let urlObj of tweet.data.entities.urls) {
+            text = text.replace(
+            urlObj.url,
+            `<a href="${urlObj.expanded_url}" target="_blank">${urlObj.display_url}</a>`
+            );
+        }
+    }
+
+    const text_tagged = text
+        .replace(/(?<=\s)#([^\s]+)/g, '<a href="https://twitter.com/hashtag/$1?src=hashtag_click" target="_blank">#$1</a>')
+        .replace(/\n/g, '<br />')
+    main = main.replace('%TEXT%', text_tagged)
 
     // Check if image exists
     if(tweet.includes.media && tweet.includes.media[0].type === 'photo') {
